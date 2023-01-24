@@ -1,0 +1,7 @@
+version: "3" # 버전 지정
+
+services: # 컨테이너 설정
+  zephyr:
+    image: imwoo/zephyr:backport-52519-to-v2.7-branch
+    stdin_open: true
+    tty: true

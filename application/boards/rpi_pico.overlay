@@ -1,0 +1,47 @@
+/ {
+	chosen {
+		zephyr,usb-device = &zephyr_udc0;
+		zephyr,console = &cdc_acm_uart0;
+		zephyr,shell-uart = &cdc_acm_uart0;
+	};
+
+	fstab {
+		compatible = "zephyr,fstab";
+		lfs1: lfs1 {
+			compatible = "zephyr,fstab,littlefs";
+			mount-point = "/root";
+			partition = <&lfs1_part>;
+			automount;
+			read-size = <16>;
+			prog-size = <16>;
+			cache-size = <64>;
+			lookahead-size = <32>;
+			block-cycles = <512>;
+		};
+	};
+};
+
+&flash0 {
+
+	partitions {
+		/*
+		 * Usable flash. Starts at 0x100, after the bootloader. The partition
+		 * size is 2MB minus the 0x100 bytes taken by the bootloader.
+		 */
+		code_partition: partition@100 {
+			label = "code-partition";
+			reg = <0x100 (DT_SIZE_M(1) - 0x100)>;
+			read-only;
+		};
+		lfs1_part: partition@100000 {
+			label = "storage";
+			reg = <0x00100000 0x00100000>;
+		};
+	};
+};
+
+zephyr_udc0: &usbd {
+    cdc_acm_uart0: cdc_acm_uart0 {
+        compatible = "zephyr,cdc-acm-uart";
+    };
+};
