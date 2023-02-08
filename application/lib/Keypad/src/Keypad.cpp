@@ -59,7 +59,7 @@ char Keypad::getKey() {
 
 	if (getKeys() && key[0].stateChanged && (key[0].kstate==PRESSED))
 		return key[0].kchar;
-	
+
 	single_key = false;
 
 	return NO_KEY;
@@ -70,10 +70,10 @@ bool Keypad::getKeys() {
 	bool keyActivity = false;
 
 	// Limit how often the keypad is scanned. This makes the loop() run 10 times as fast.
-	if ( (millis()-startTime)>debounceTime ) {
+	if ( (k_uptime_get_32()-startTime)>debounceTime ) {
 		scanKeys();
 		keyActivity = updateList();
-		startTime = millis();
+		startTime = k_uptime_get_32();
 	}
 
 	return keyActivity;
@@ -156,10 +156,10 @@ void Keypad::nextKeyState(byte idx, boolean button) {
 		case IDLE:
 			if (button==CLOSED) {
 				transitionTo (idx, PRESSED);
-				holdTimer = millis(); }		// Get ready for next HOLD state.
+				holdTimer = k_uptime_get_32(); }		// Get ready for next HOLD state.
 			break;
 		case PRESSED:
-			if ((millis()-holdTimer)>holdTime)	// Waiting for a key HOLD...
+			if ((k_uptime_get_32()-holdTimer)>holdTime)	// Waiting for a key HOLD...
 				transitionTo (idx, HOLD);
 			else if (button==OPEN)				// or for a key to be RELEASED.
 				transitionTo (idx, RELEASED);

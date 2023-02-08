@@ -35,16 +35,14 @@
 #ifndef PCF8574_h
 #define PCF8574_h
 
-#include "Wire.h"
+#include <zephyr/kernel.h>
+#include <zephyr/device.h>
+#include <zephyr/drivers/i2c.h>
 
-#if ARDUINO >= 100
-#include "Arduino.h"
-#else
-#include "WProgram.h"
-#endif
-
-#define DEFAULT_SDA SDA;
-#define DEFAULT_SCL SCL;
+#include <arduino_common.h>
+#define DEFAULT_SDA 4;
+#define DEFAULT_SCL 5;
+#define TEENSYDUINO
 
 // Uncomment to enable printing out nice debug messages.
 //  #define PCF8574_DEBUG
@@ -227,7 +225,7 @@ private:
 	int _sda = DEFAULT_SDA;
 	int _scl = DEFAULT_SCL;
 
-	TwoWire *_wire;
+	const struct device *i2c_dev;
 
 	bool _usingInterrupt = false;
 	uint8_t _interruptPin = 2;

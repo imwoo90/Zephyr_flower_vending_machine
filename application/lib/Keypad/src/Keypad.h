@@ -35,23 +35,6 @@
 
 #include "Key.h"
 
-// bperrybap - Thanks for a well reasoned argument and the following macro(s).
-// See http://arduino.cc/forum/index.php/topic,142041.msg1069480.html#msg1069480
-#ifndef INPUT_PULLUP
-#warning "Using  pinMode() INPUT_PULLUP AVR emulation"
-#define INPUT_PULLUP 0x2
-#define pinMode(_pin, _mode) _mypinMode(_pin, _mode)
-#define _mypinMode(_pin, _mode)  \
-do {							 \
-	if(_mode == INPUT_PULLUP)	 \
-		pinMode(_pin, INPUT);	 \
-		digitalWrite(_pin, 1);	 \
-	if(_mode != INPUT_PULLUP)	 \
-		pinMode(_pin, _mode);	 \
-}while(0)
-#endif
-
-
 #define OPEN LOW
 #define CLOSED HIGH
 
@@ -77,9 +60,9 @@ public:
 
 	Keypad(char *userKeymap, byte *row, byte *col, byte numRows, byte numCols);
 
-	virtual void pin_mode(byte pinNum, byte mode) { pinMode(pinNum, mode); }
-	virtual void pin_write(byte pinNum, boolean level) { digitalWrite(pinNum, level); }
-	virtual int  pin_read(byte pinNum) { return digitalRead(pinNum); }
+	virtual void pin_mode(byte pinNum, byte mode) = 0;
+	virtual void pin_write(byte pinNum, boolean level) = 0;
+	virtual int  pin_read(byte pinNum) = 0 ;
 
 	uint bitMap[MAPSIZE];	// 10 row x 16 column array of bits. Except Due which has 32 columns.
 	Key key[LIST_MAX];

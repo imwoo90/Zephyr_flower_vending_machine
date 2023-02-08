@@ -26,14 +26,13 @@
  */
 
 #include "PCF8574.h"
-#include "Wire.h"
 
 /**
  * Constructor
  * @param address: i2c address
  */
 PCF8574::PCF8574(uint8_t address){
-	_wire = &Wire;
+	i2c_dev = DEVICE_DT_GET(DT_NODELABEL(i2c0));
 
 	_address = address;
 };
@@ -45,7 +44,7 @@ PCF8574::PCF8574(uint8_t address){
  * @param interruptFunction: function to call when interrupt raised
  */
 PCF8574::PCF8574(uint8_t address, uint8_t interruptPin,  void (*interruptFunction)() ){
-	_wire = &Wire;
+	i2c_dev = DEVICE_DT_GET(DT_NODELABEL(i2c0));
 
 	_address = address;
 	_interruptPin = interruptPin;
@@ -61,7 +60,7 @@ PCF8574::PCF8574(uint8_t address, uint8_t interruptPin,  void (*interruptFunctio
 	 * @param scl: scl pin
 	 */
 	PCF8574::PCF8574(uint8_t address, int sda, int scl){
-		_wire = &Wire;
+		i2c_dev = DEVICE_DT_GET(DT_NODELABEL(i2c0));
 
 		_address = address;
 		_sda = sda;
@@ -77,7 +76,7 @@ PCF8574::PCF8574(uint8_t address, uint8_t interruptPin,  void (*interruptFunctio
  	 * @param interruptFunction: function to call when interrupt raised
 	 */
 	PCF8574::PCF8574(uint8_t address, int sda, int scl, uint8_t interruptPin,  void (*interruptFunction)() ){
-		_wire = &Wire;
+		i2c_dev = DEVICE_DT_GET(DT_NODELABEL(i2c0));
 
 		_address = address;
 		_sda = sda;
@@ -166,17 +165,17 @@ PCF8574::PCF8574(uint8_t address, uint8_t interruptPin,  void (*interruptFunctio
 	//		DEBUG_PRINTLN("Using interrupt pin (not all pin is interrupted)");
 	//		::pinMode(_interruptPin, INPUT_PULLUP);
 	//		attachInterrupt(digitalPinToInterrupt(_interruptPin), (*_interruptFunction), FALLING );
-			DEBUG_PRINTLN("Using interrupt pin (not all pin is interrupted)");
-			::pinMode(_interruptPin, INPUT_PULLUP);
-			::attachInterrupt(digitalPinToInterrupt(_interruptPin), (*_interruptFunction), FALLING );
+			// DEBUG_PRINTLN("Using interrupt pin (not all pin is interrupted)");
+			// ::pinMode(_interruptPin, INPUT_PULLUP);
+			// ::attachInterrupt(digitalPinToInterrupt(_interruptPin), (*_interruptFunction), FALLING );
 		}
 
 	}
 	void PCF8574::detachInterrupt(){
 		// If using interrupt set interrupt value to pin
 		if (_usingInterrupt){
-			::detachInterrupt(digitalPinToInterrupt(_interruptPin));
-			DEBUG_PRINTLN("Detach interrupt pin");
+			// ::detachInterrupt(digitalPinToInterrupt(_interruptPin));
+			// DEBUG_PRINTLN("Detach interrupt pin");
 		}
 
 	}
@@ -198,13 +197,11 @@ bool PCF8574::begin(){
 	//			Default pin for AVR some problem on software emulation
 	//			#define SCL_PIN _scl
 	// 			#define SDA_PIN _sda
-		_wire->begin();
 	#endif
 
 	// Check if there are pins to set low
 	if (writeMode>0 || readMode>0){
 		DEBUG_PRINTLN("Set write mode");
-		_wire->beginTransmission(_address);
 
 
 		DEBUG_PRINT("resetInitial pin ");
@@ -215,14 +212,16 @@ bool PCF8574::begin(){
 #endif
 		DEBUG_PRINTLN( resetInitial, BIN);
 
-		_wire->write(resetInitial);
+		this->transmissionStatus = i2c_write(i2c_dev, &resetInitial, 1, _address);
+		if (this->transmissionStatus) {
+			this->transmissionStatus = 4;
+		}
 
 		initialBuffer = writeModeUp | readModePullUp;
 		byteBuffered = initialBuffer;
 		writeByteBuffered = writeModeUp;
 
 		DEBUG_PRINTLN("Start end trasmission if stop here check pullup resistor.");
-		this->transmissionStatus = _wire->endTransmission();
 	}
 
 //	// If using interrupt set interrupt value to pin
@@ -240,7 +239,7 @@ bool PCF8574::begin(){
 	PCF8574::attachInterrupt();
 
 	// inizialize last read
-	lastReadMillis = millis();
+	lastReadMillis = k_uptime_get_32();
 
 	return this->isLastTransmissionSuccess();
 }
@@ -745,14 +744,12 @@ bool PCF8574::checkProgression(byte oldValA, byte oldValB, byte newValA, byte ne
  * @param force
  */
 void PCF8574::readBuffer(bool force){
-	if (millis() > PCF8574::lastReadMillis+latency || _usingInterrupt || force){
-		_wire->requestFrom(_address,(uint8_t)1);// Begin transmission to PCF8574 with the buttons
-		lastReadMillis = millis();
-		if(_wire->available())   // If bytes are available to be recieved
-		{
-			byte iInput = _wire->read();// Read a byte
-			  if ((iInput & readModePullDown)>0 and (~iInput & readModePullUp)>0){
-//			  if ((iInput & readMode)>0){
+	if (k_uptime_get_32() > PCF8574::lastReadMillis+latency || _usingInterrupt || force){
+		lastReadMillis = k_uptime_get_32();
+		byte iInput;
+		if (i2c_read(i2c_dev, &iInput, 1, _address) == 0) {
+			if ((iInput & readModePullDown)>0 and (~iInput & readModePullUp)>0){
+//			if ((iInput & readMode)>0){
 				byteBuffered = (byteBuffered & ~readMode) | (byte)iInput;
 			}
 		}
@@ -767,17 +764,13 @@ void PCF8574::readBuffer(bool force){
 	 */
 	PCF8574::DigitalInput PCF8574::digitalReadAll(void){
 		DEBUG_PRINTLN("Read from buffer");
-		_wire->requestFrom(_address,(uint8_t)1);// Begin transmission to PCF8574 with the buttons
-		lastReadMillis = millis();
-		if(_wire->available())   // If bytes are available to be recieved
-		{
-			  DEBUG_PRINTLN("Data ready");
-			  byte iInput = _wire->read();// Read a byte
-
-			  if ((readModePullDown & iInput)>0 or (readModePullUp & ~iInput)>0){
-				  DEBUG_PRINT(" -------- CHANGE --------- ");
-				  byteBuffered = (byteBuffered & ~readMode) | (byte)iInput;
-			  }
+		lastReadMillis = k_uptime_get_32();
+		byte iInput;
+		if (i2c_read(i2c_dev, &iInput, 1, _address) == 0) {
+			if ((readModePullDown & iInput)>0 or (readModePullUp & ~iInput)>0){
+				DEBUG_PRINT(" -------- CHANGE --------- ");
+				byteBuffered = (byteBuffered & ~readMode) | (byte)iInput;
+			}
 		}
 
 		DEBUG_PRINT("Buffer value ");
@@ -822,7 +815,7 @@ void PCF8574::readBuffer(bool force){
 	byte PCF8574::digitalReadAll(void){
 		DEBUG_PRINTLN("Read from buffer");
 		_wire->requestFrom(_address,(uint8_t)1);// Begin transmission to PCF8574 with the buttons
-		lastReadMillis = millis();
+		lastReadMillis = k_uptime_get_32();
 		if(_wire->available())   // If bytes are available to be recieved
 		{
 			  DEBUG_PRINTLN("Data ready");
@@ -878,28 +871,25 @@ uint8_t PCF8574::digitalRead(uint8_t pin, bool forceReadNow){
 		  }else{
 			  value = LOW;
 		  }
-	 }else if (forceReadNow || (millis() > PCF8574::lastReadMillis+latency)){
-		 DEBUG_PRINT(" ...Read from buffer... ");
-		  _wire->requestFrom(_address,(uint8_t)1);// Begin transmission to PCF8574 with the buttons
-		  lastReadMillis = millis();
-		  if(_wire->available())   // If bytes are available to be recieved
-		  {
-			  DEBUG_PRINTLN(" Data ready");
-			  byte iInput = _wire->read();// Read a byte
-			  DEBUG_PRINT("Input ");
-			  DEBUG_PRINT((byte)iInput, BIN);
+	 }else if (forceReadNow || (k_uptime_get_32() > PCF8574::lastReadMillis+latency)){
+		DEBUG_PRINT(" ...Read from buffer... ");
+		lastReadMillis = k_uptime_get_32();
+		byte iInput;
+		if (i2c_read(i2c_dev, &iInput, 1, _address) == 0) {
+			DEBUG_PRINT("Input ");
+			DEBUG_PRINT((byte)iInput, BIN);
 
-			  if ((readModePullDown & iInput)>0 or (readModePullUp & ~iInput)>0){
-				  DEBUG_PRINT(" -------- CHANGE --------- ");
-				  byteBuffered = (byteBuffered & ~readMode) | (byte)iInput;
-				  if ((bit(pin) & byteBuffered)>0){
-					  value = HIGH;
-				  }else{
-					  value = LOW;
-				  }
+			if ((readModePullDown & iInput)>0 or (readModePullUp & ~iInput)>0){
+				DEBUG_PRINT(" -------- CHANGE --------- ");
+				byteBuffered = (byteBuffered & ~readMode) | (byte)iInput;
+				if ((bit(pin) & byteBuffered)>0){
+					value = HIGH;
+				}else{
+					value = LOW;
+				}
 //				  value = (bit(pin) & byteBuffered);
-			  }
-		  }
+			}
+		}
 	}
 	DEBUG_PRINT(" ..Buffer value ");
 	DEBUG_PRINT(byteBuffered, BIN);
@@ -927,7 +917,7 @@ uint8_t PCF8574::digitalRead(uint8_t pin, bool forceReadNow){
  */
 bool PCF8574::digitalWrite(uint8_t pin, uint8_t value){
 	DEBUG_PRINTLN("Begin trasmission");
-	_wire->beginTransmission(_address);     //Begin the transmission to PCF8574
+
 	DEBUG_PRINT("Value ");
 	DEBUG_PRINT(value);
 	DEBUG_PRINT(" Write data pre ");
@@ -959,14 +949,15 @@ bool PCF8574::digitalWrite(uint8_t pin, uint8_t value){
 	DEBUG_PRINT("Going to write data ");
 	DEBUG_PRINTLN(writeByteBuffered, BIN);
 
-	_wire->write(byteBuffered);
+	this->transmissionStatus = i2c_write(i2c_dev, &byteBuffered, 1, _address);
+	if (this->transmissionStatus) {
+		this->transmissionStatus = 4;
+	}
 
 	byteBuffered = (writeByteBuffered & writeMode) | (initialBuffer & readMode);
 
 //	byteBuffered = (writeByteBuffered & writeMode) & (byteBuffered & readMode);
 	DEBUG_PRINTLN("Start end trasmission if stop here check pullup resistor.");
-
-	this->transmissionStatus = _wire->endTransmission();
 
 	return this->isLastTransmissionSuccess();
 };
@@ -1008,8 +999,6 @@ bool PCF8574::digitalWrite(uint8_t pin, uint8_t value){
 
 
 bool PCF8574::digitalWriteAllBytes(byte allpins){
-	_wire->beginTransmission(_address);     //Begin the transmission to PCF8574
-
 	// writeByteBuffered = writeByteBuffered & (~writeMode & byteBuffered);
 	writeByteBuffered = allpins;
 	byteBuffered = (writeByteBuffered & writeMode) | (resetInitial & readMode);
@@ -1021,14 +1010,15 @@ bool PCF8574::digitalWriteAllBytes(byte allpins){
 	DEBUG_PRINT("Going to write data ");
 	DEBUG_PRINTLN(writeByteBuffered, BIN);
 
-	_wire->write(byteBuffered);
+	this->transmissionStatus = i2c_write(i2c_dev, &byteBuffered, 1, _address);
+	if (this->transmissionStatus) {
+		this->transmissionStatus = 4;
+	}
 
 	byteBuffered = (writeByteBuffered & writeMode) | (initialBuffer & readMode);
 
 //	byteBuffered = (writeByteBuffered & writeMode) & (byteBuffered & readMode);
 	DEBUG_PRINTLN("Start end trasmission if stop here check pullup resistor.");
-
-	this->transmissionStatus = _wire->endTransmission();
 
 	return this->isLastTransmissionSuccess();
 

@@ -3,6 +3,6 @@
 
 mainmenu "Flower Vending Machine"
 
-
+# rsource "src/Kconfig"
 
 source "Kconfig.zephyr"

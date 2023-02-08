@@ -32,10 +32,9 @@
 #ifndef Keypadlib_KEY_H_
 #define Keypadlib_KEY_H_
 
-#include <Arduino.h>
+#include <zephyr/kernel.h>
 
-#define OPEN LOW
-#define CLOSED HIGH
+#include <arduino_common.h>
 
 typedef unsigned int uint;
 typedef enum{ IDLE, PRESSED, HOLD, RELEASED } KeyState;

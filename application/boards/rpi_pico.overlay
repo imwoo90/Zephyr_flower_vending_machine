@@ -10,13 +10,24 @@
 		lfs1: lfs1 {
 			compatible = "zephyr,fstab,littlefs";
 			mount-point = "/root";
-			partition = <&lfs1_part>;
+			partition = <&storage_partition>;
 			automount;
 			read-size = <16>;
 			prog-size = <16>;
 			cache-size = <64>;
 			lookahead-size = <32>;
 			block-cycles = <512>;
+		};
+	};
+
+	leds {
+		led_run: led_1 {
+			gpios = <&gpio0 22 GPIO_ACTIVE_HIGH>;
+			label = "led_run";
+		};
+		led_key_pad: led_2 {
+			gpios = <&gpio0 3 GPIO_ACTIVE_HIGH>;
+			label = "led_key_pad";
 		};
 	};
 };
@@ -33,8 +44,8 @@
 			reg = <0x100 (DT_SIZE_M(1) - 0x100)>;
 			read-only;
 		};
-		lfs1_part: partition@100000 {
-			label = "storage";
+		storage_partition: partition@100000 {
+			label = "storage_partition";
 			reg = <0x00100000 0x00100000>;
 		};
 	};
@@ -44,4 +55,17 @@ zephyr_udc0: &usbd {
     cdc_acm_uart0: cdc_acm_uart0 {
         compatible = "zephyr,cdc-acm-uart";
     };
+};
+
+&uart0 {
+	current-speed = <9600>;
+
+	modbus1 {
+		compatible = "zephyr,modbus-serial";
+		status = "okay";
+	};
+};
+
+&i2c0 {
+	clock-frequency = <I2C_BITRATE_STANDARD>;
 };
