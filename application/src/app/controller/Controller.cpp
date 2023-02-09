@@ -66,7 +66,7 @@ int Controller::setupMachine() {
         _prevData = data;
 
 
-        // _display->show(data);
+        _display->show(data);
 
         //Reader enable disable controll
         if (data["BanknoteReader"] == "enable") {
@@ -206,8 +206,8 @@ int Controller::setupKeypad() {
 // }
 
 void Controller::setup() {
-    // _display = Display::getInstance();
-    // _display->begin();
+    _display = Display::getInstance();
+    _display->begin();
     k_msleep(1000);
     // Controller loop Queue Create
     k_msgq_init(&_q, _q_buffer, sizeof(Message), 256);

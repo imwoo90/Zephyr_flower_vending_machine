@@ -1,8 +1,7 @@
 #pragma once
 
-#include <Arduino.h>
+#include <zephyr/kernel.h>
 #include <U8g2lib.h>
-#include <SPI.h>
 
 #include <string>
 #include <unordered_map>
@@ -20,8 +19,6 @@ private:
 public:
 
     void begin() {
-        SPI.setSCK(18);
-        SPI.setTX(19);
         u8g2.begin();
     }
     static Display* getInstance() {

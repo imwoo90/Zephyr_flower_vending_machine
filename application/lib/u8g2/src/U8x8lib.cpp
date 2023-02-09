@@ -1889,3 +1889,240 @@ void u8x8_SetPin_SED1520(u8x8_t *u8x8, uint8_t d0, uint8_t d1, uint8_t d2, uint8
   u8x8_SetPin(u8x8, U8X8_PIN_RESET, reset);
 }
 #endif // U8X8_USE_PINS
+
+#include <zephyr/device.h>
+#include <zephyr/drivers/gpio.h>
+#include <zephyr/drivers/spi.h>
+
+static const struct device *gpio0 = DEVICE_DT_GET(DT_NODELABEL(gpio0));
+extern "C" uint8_t u8x8_gpio_and_delay_arduino(u8x8_t *u8x8, uint8_t msg, uint8_t arg_int, U8X8_UNUSED void *arg_ptr)
+{
+  uint8_t i;
+  switch(msg)
+  {
+    case U8X8_MSG_GPIO_AND_DELAY_INIT:
+
+      for( i = 0; i < U8X8_PIN_CNT; i++ )
+        if ( u8x8->pins[i] != U8X8_PIN_NONE )
+        {
+          if ( i < U8X8_PIN_OUTPUT_CNT )
+          {
+            // pinMode(u8x8->pins[i], OUTPUT);
+            gpio_pin_configure(gpio0, u8x8->pins[i], GPIO_OUTPUT);
+          }
+          else
+          {
+            gpio_pin_configure(gpio0, u8x8->pins[i], GPIO_INPUT | GPIO_PULL_UP);
+// #ifdef INPUT_PULLUP
+//             pinMode(u8x8->pins[i], INPUT_PULLUP);
+// #else
+//             pinMode(u8x8->pins[i], OUTPUT);
+//             digitalWrite(u8x8->pins[i], 1);
+// #endif
+          }
+        }
+
+      break;
+
+#ifndef __AVR__
+    /* this case is not compiled for any AVR, because AVR uC are so slow */
+    /* that this delay does not matter */
+    case U8X8_MSG_DELAY_NANO:
+      // delayMicroseconds(arg_int==0?0:1);
+      k_usleep(arg_int==0?0:1);
+      break;
+#endif
+
+    case U8X8_MSG_DELAY_10MICRO:
+      /* not used at the moment */
+      break;
+
+    case U8X8_MSG_DELAY_100NANO:
+      /* not used at the moment */
+      break;
+
+    case U8X8_MSG_DELAY_MILLI:
+      // delay(arg_int);
+      k_msleep(arg_int);
+      break;
+
+    default:
+      if ( msg >= U8X8_MSG_GPIO(0) )
+      {
+        i = u8x8_GetPinValue(u8x8, msg);
+        if ( i != U8X8_PIN_NONE )
+        {
+          if ( u8x8_GetPinIndex(u8x8, msg) < U8X8_PIN_OUTPUT_CNT )
+          {
+            // digitalWrite(i, arg_int);
+            gpio_pin_set(gpio0, i, arg_int);
+          }
+          else
+          {
+            if ( u8x8_GetPinIndex(u8x8, msg) == U8X8_PIN_OUTPUT_CNT )
+            {
+              // call yield() for the first pin only, u8x8 will always request all the pins, so this should be ok
+              k_yield();
+            }
+            // u8x8_SetGPIOResult(u8x8, digitalRead(i) == 0 ? 0 : 1);
+            u8x8_SetGPIOResult(u8x8, gpio_pin_get(gpio0, i) == 0 ? 0 : 1);
+          }
+        }
+        break;
+      }
+
+      return 0;
+  }
+  return 1;
+}
+
+static const struct device *spi0 = DEVICE_DT_GET(DT_NODELABEL(spi0));
+struct spi_config spi0_config = {
+    .frequency = 8000000,
+    .operation = (SPI_WORD_SET(8) | SPI_TRANSFER_MSB |
+                  SPI_MODE_CPOL | SPI_MODE_CPHA),
+    .slave = 0,
+};
+extern "C" uint8_t u8x8_byte_arduino_hw_spi(u8x8_t *u8x8, uint8_t msg, uint8_t arg_int, void *arg_ptr)
+{
+#ifdef U8X8_HAVE_HW_SPI
+  uint8_t *data;
+  uint8_t internal_spi_mode;
+
+  switch(msg)
+  {
+    case U8X8_MSG_BYTE_SEND:
+
+      // 1.6.5 offers a block transfer, but the problem is, that the
+      // buffer is overwritten with the incoming data
+      // so it can not be used...
+      // SPI.transfer((uint8_t *)arg_ptr, arg_int);
+
+      data = (uint8_t *)arg_ptr;
+      while( arg_int > 0 )
+      {
+        // SPI.transfer((uint8_t)*data);
+        struct spi_buf tx_buf = {
+            .buf = data,
+            .len = 1
+        };
+        uint8_t ret;
+        struct spi_buf rx_buf = {
+            .buf = &ret,
+            .len = 1
+        };
+
+        struct spi_buf_set tx_bufs = {
+            .buffers = &tx_buf,
+            .count = 1
+        };
+
+        struct spi_buf_set rx_bufs = {
+            .buffers = &rx_buf,
+            .count = 1
+        };
+
+        spi_transceive(spi0, &spi0_config, &tx_bufs, &rx_bufs);
+
+        data++;
+        arg_int--;
+      }
+
+      break;
+    case U8X8_MSG_BYTE_INIT:
+      if ( u8x8->bus_clock == 0 )         /* issue 769 */
+        u8x8->bus_clock = u8x8->display_info->sck_clock_hz;
+      /* disable chipselect */
+      u8x8_gpio_SetCS(u8x8, u8x8->display_info->chip_disable_level);
+
+//       /* no wait required here */
+
+//       /* for SPI: setup correct level of the clock signal */
+//       // removed, use SPI.begin() instead: pinMode(11, OUTPUT);
+//       // removed, use SPI.begin() instead: pinMode(13, OUTPUT);
+//       // removed, use SPI.begin() instead: digitalWrite(13, u8x8_GetSPIClockPhase(u8x8));
+
+//       /* setup hardware with SPI.begin() instead of previous digitalWrite() and pinMode() calls */
+
+
+//       /* issue #377 */
+//       /* issue #378: removed ESP8266 support, which is implemented differently */
+// #if defined(ESP_PLATFORM) || defined(ARDUINO_ARCH_ESP32)
+//       /* ESP32 has the following begin: SPI.begin(int8_t sck=SCK, int8_t miso=MISO, int8_t mosi=MOSI, int8_t ss=-1); */
+//       /* not sure about ESP8266 */
+//       if ( u8x8->pins[U8X8_PIN_I2C_CLOCK] != U8X8_PIN_NONE && u8x8->pins[U8X8_PIN_I2C_DATA] != U8X8_PIN_NONE )
+//       {
+//         /* SPI.begin(int8_t sck=SCK, int8_t miso=MISO, int8_t mosi=MOSI, int8_t ss=-1); */
+//         /* actually MISO is not used, but what else could be used here??? */
+//         SPI.begin(u8x8->pins[U8X8_PIN_I2C_CLOCK], MISO, u8x8->pins[U8X8_PIN_I2C_DATA]);
+//       }
+//       else
+//       {
+//         SPI.begin();
+//       }
+// #else
+//       SPI.begin();
+// #endif
+
+
+
+      break;
+
+    case U8X8_MSG_BYTE_SET_DC:
+      u8x8_gpio_SetDC(u8x8, arg_int);
+      break;
+
+    case U8X8_MSG_BYTE_START_TRANSFER:
+      /* SPI mode has to be mapped to the mode of the current controller, at least Uno, Due, 101 have different SPI_MODEx values */
+      internal_spi_mode =  0;
+      switch(u8x8->display_info->spi_mode)
+      {
+        case 0: internal_spi_mode = 0; break;
+        case 1: internal_spi_mode = SPI_MODE_CPOL; break;
+        case 2: internal_spi_mode = SPI_MODE_CPHA; break;
+        case 3: internal_spi_mode = SPI_MODE_CPHA | SPI_MODE_CPOL; break;
+      }
+
+      spi0_config.frequency = u8x8->bus_clock;
+      spi0_config.operation = (SPI_WORD_SET(8) | SPI_TRANSFER_MSB | internal_spi_mode);
+
+// #if ARDUINO >= 10600
+//       SPI.beginTransaction(SPISettings(u8x8->bus_clock, MSBFIRST, internal_spi_mode));
+// #else
+//       SPI.begin();
+
+//       if ( u8x8->display_info->sck_pulse_width_ns < 70 )
+//         SPI.setClockDivider( SPI_CLOCK_DIV2 );
+//       else if ( u8x8->display_info->sck_pulse_width_ns < 140 )
+//         SPI.setClockDivider( SPI_CLOCK_DIV4 );
+//       else
+//         SPI.setClockDivider( SPI_CLOCK_DIV8 );
+//       SPI.setDataMode(internal_spi_mode);
+//       SPI.setBitOrder(MSBFIRST);
+// #endif
+
+      u8x8_gpio_SetCS(u8x8, u8x8->display_info->chip_enable_level);
+      u8x8->gpio_and_delay_cb(u8x8, U8X8_MSG_DELAY_NANO, u8x8->display_info->post_chip_enable_wait_ns, NULL);
+      break;
+
+    case U8X8_MSG_BYTE_END_TRANSFER:
+      u8x8->gpio_and_delay_cb(u8x8, U8X8_MSG_DELAY_NANO, u8x8->display_info->pre_chip_disable_wait_ns, NULL);
+      u8x8_gpio_SetCS(u8x8, u8x8->display_info->chip_disable_level);
+
+// #if ARDUINO >= 10600
+//       SPI.endTransaction();
+// #else
+//       SPI.end();
+// #endif
+
+      break;
+    default:
+      return 0;
+  }
+
+#else        /* U8X8_HAVE_HW_SPI */
+
+#endif        /* U8X8_HAVE_HW_SPI */
+  return 1;
+}
+

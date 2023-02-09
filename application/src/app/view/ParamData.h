@@ -1,5 +1,5 @@
 #pragma once
-#include <Arduino.h>
+#include <zephyr/kernel.h>
 #include "resource.h"
 
 struct ParamData {

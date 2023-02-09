@@ -2,6 +2,8 @@
 #include "ParamData.h"
 #include <algorithm>
 
+extern char *itoa(int num, char *str, int base);
+
 inline ResourceType getResourceType(std::string &s_rsrc) {
     static const std::unordered_map<std::string, ResourceType> _getResourceType = {
     #define X(name) {#name, name},

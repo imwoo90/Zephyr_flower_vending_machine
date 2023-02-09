@@ -7,7 +7,7 @@
 #include <device/Keypad_4x3/Keypad_4x3.h>
 // #include <device/BanknoteReader/BanknoteReader.h>
 #include <device/Relay/Relay.h>
-// #include <Display.h>
+#include <Display.h>
 
 #include <vector>
 
@@ -47,7 +47,7 @@ private:
     k_timer _keypadOffLedTimer;
     k_timer _lastKeyPadReleaseTimer;
 
-    // Display* _display;
+    Display* _display;
 
     FlowVendingMachine* _machine;
     Keypad_4x3* _keypad;
