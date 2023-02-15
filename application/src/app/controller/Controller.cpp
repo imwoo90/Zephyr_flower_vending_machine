@@ -9,7 +9,9 @@
 #include <zephyr/logging/log.h>
 LOG_MODULE_REGISTER(CTRL);
 
+static const struct device *gpio0 = DEVICE_DT_GET(DT_NODELABEL(gpio0));
 static const struct gpio_dt_spec led_run = GPIO_DT_SPEC_GET(DT_NODELABEL(led_run), gpios);
+static struct gpio_callback swPinCallback;
 
 struct MessageCallbackData{
     struct k_work_delayable work;
@@ -38,11 +40,23 @@ static int channel_swMotorInterrupt;
 //     }
 //     p->_isISR = false;
 // }
+static void motorRoundCallback(const struct device *port,
+                    struct gpio_callback *cb,
+                    gpio_port_pins_t pins) {
+    Controller* p = Controller::getInstance();
+    if (gpio_pin_get(gpio0, 2) == 0){
+        p->putMessage(MessageRelayClose, channel_swMotorInterrupt);
+    }
+    LOG_INF("%s", __func__);
+}
 
 int Controller::setupMachine() {
     _machine = FlowVendingMachine::getInstance();
     // pinMode(2, INPUT);
+    gpio_pin_interrupt_configure(gpio0, 2, GPIO_INPUT | GPIO_INT_EDGE_FALLING );
     // attachInterrupt(2, motorRoundCallback, FALLING, this);
+    gpio_init_callback(&swPinCallback, motorRoundCallback, BIT(2));
+    gpio_add_callback(gpio0, &swPinCallback);
 
     auto onChangedCallback = [&](std::unordered_map<std::string, std::string> data) {
         static std::unordered_map<std::string, std::string> _prevData;

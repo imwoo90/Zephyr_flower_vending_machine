@@ -71,7 +71,6 @@ int OBH_K03P::initialized() {
     k_timer_init(&_timer, billDataEndCallback, NULL);
     _timer.user_data = this;
 
-    // gpio_pin_configure(gpio0, _vendPin, GPIO_INPUT | GPIO_PULL_UP | GPIO_INT_EDGE_FALLING );
     gpio_init_callback(&vendPinCallback, cntPulse, BIT(_vendPin));
 	gpio_add_callback(gpio0, &vendPinCallback);
 
