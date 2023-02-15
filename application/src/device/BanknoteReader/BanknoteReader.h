@@ -1,8 +1,6 @@
 #ifndef BANKNOTE_READER_H
 #define BANKNOTE_READER_H
-#include <FreeRTOS.h>
-#include <task.h>
-#include <queue.h>
+#include <zephyr/kernel.h>
 
 #include <functional>
 #include <vector>

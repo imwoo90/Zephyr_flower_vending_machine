@@ -1,5 +1,5 @@
 #include "R4D3B16.h"
-
+#include <zephyr/modbus/modbus.h>
 static int client_iface;
 
 R4D3B16::R4D3B16(uint8_t id, int numOfChannels) {
@@ -10,14 +10,14 @@ R4D3B16::R4D3B16(uint8_t id, int numOfChannels) {
 uint8_t R4D3B16::open(uint16_t addr) {
     // uint8_t ret = node.writeSingleRegister(addr, 0x0100);
     uint8_t ret = modbus_write_holding_reg(client_iface, _node, addr, 0x0100);
-    delay(50);
+    k_msleep(50);
     return ret;
 }
 
 uint8_t R4D3B16::close(uint16_t addr) {
     // uint8_t ret = node.writeSingleRegister(addr, 0x0200);
     uint8_t ret = modbus_write_holding_reg(client_iface, _node, addr, 0x0200);
-    delay(50);
+    k_msleep(50);
     return ret;
 }
 

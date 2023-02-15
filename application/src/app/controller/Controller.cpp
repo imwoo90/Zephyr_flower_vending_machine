@@ -1,9 +1,9 @@
 #include <Controller.h>
 
 // #include <device/BanknoteReader/OBH_K03S.h>
-// #include <device/BanknoteReader/OBH_K03P.h>
+#include <device/BanknoteReader/OBH_K03P.h>
 // #include <device/Relay/UPUS_SKB.h>
-// #include <device/Relay/R4D3B16.h>
+#include <device/Relay/R4D3B16.h>
 
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/logging/log.h>
@@ -100,7 +100,7 @@ int Controller::setupMachine() {
         }
 
         if(data["deinitRelays"] == "Running") {
-            // deinitRelays();
+            deinitRelays();
         }
 
         if (data["isSelled"] == "OK") {
@@ -149,61 +149,54 @@ int Controller::setupKeypad() {
     k_timer_init(&_lastKeyPadReleaseTimer, _flushTimer, NULL);
     _lastKeyPadReleaseTimer.user_data = this;
 
-    // // _keypad->startPolling();
+    // _keypad->startPolling();
     return 0;
 }
 
-// int Controller::setupBankNoteReader() {
-//     auto onRecognizedBankNote = [&](const int billData) {
-//         putMessage(MessageBanknoteRecognize, billData);
-//     };
-//     int readerMode = _machine->_database->getBanknoteReaderMode();
+int Controller::setupBankNoteReader() {
+    auto onRecognizedBankNote = [&](const int billData) {
+        putMessage(MessageBanknoteRecognize, billData);
+    };
+    int readerMode = _machine->_database->getBanknoteReaderMode();
 
-//     if (readerMode == 1) {
-//         _bankNoteReader = OBH_K03P::getInstance()->setPins(12, 10, 11);
-//     } else if(readerMode == 2) {
-//         Serial2.setPinout(8, 9);
-//         Serial2.begin(9600);
-//         _bankNoteReader = OBH_K03S::getInstance(Serial2);
-//     } else {
-//         Serial.println("Reader Mode setting error");
-//         return -1;
-//     }
+    if (readerMode == 1) {
+        _bankNoteReader = OBH_K03P::getInstance()->setPins(12, 10, 11);
+    } else if(readerMode == 2) {
+        // Serial2.setPinout(8, 9);
+        // Serial2.begin(9600);
+        // _bankNoteReader = OBH_K03S::getInstance(Serial2);
+    } else {
+        LOG_INF("Reader Mode setting error");
+        return -1;
+    }
 
-//     // _bankNoteReader = OBH_K03P::getInstance()->setPins(12, 10, 11);
+    _bankNoteReader->registerBillDataCallBack(onRecognizedBankNote);
+    return _bankNoteReader->initialized();
+}
 
-//     _bankNoteReader->registerBillDataCallBack(onRecognizedBankNote);
-//     return _bankNoteReader->initialized();
-// }
+int Controller::deinitRelays() {
+    for(auto _r : _relays) {
+        delete _r;
+    }
+    _relays.clear();
+    int nRelays = _machine->_database->getNumberOfRelays();
+    for (int i = 0; i < nRelays; i++) {
+        int _type = _machine->_database->getRelayType(i);
+        int numOfCh = _machine->_database->getNumberOfChannels(i);
+        if (_type == 1) {
+            _relays.push_back(new R4D3B16(i+1, numOfCh)); //i + 1 is relay address
+        }
+    }
+    return 0;
+}
 
-// int Controller::deinitRelays() {
-//     for(auto _r : _relays) {
-//         delete _r;
-//     }
-//     _relays.clear();
-//     int nRelays = _machine->_database->getNumberOfRelays();
-//     for (int i = 0; i < nRelays; i++) {
-//         int _type = _machine->_database->getRelayType(i);
-//         int numOfCh = _machine->_database->getNumberOfChannels(i);
-//         if (_type == 1) {
-//             _relays.push_back(new R4D3B16(i+1, numOfCh, Serial1)); //i + 1 is relay address
-//         }
-//     }
-//     return 0;
-// }
-
-// int Controller::setupRelays() {
-//     enum {MAX485_RO = 1, MAX485_DI = 0,};
-//     Serial1.setRX(MAX485_RO);
-//     Serial1.setTX(MAX485_DI);
-//     Serial1.begin(9600);
-
-//     deinitRelays();
-//     // for (int i = 0; i < _machine->_database->getNumberOfColumns(); i++) {
-//     //     putMessage(MessageRelayClose, i);
-//     // }
-//     return 0;
-// }
+int Controller::setupRelays() {
+    deinitRelays();
+    // for (int i = 0; i < _machine->_database->getNumberOfColumns(); i++) {
+    //     putMessage(MessageRelayClose, i);
+    // }
+    return 0;
+}
 
 void Controller::setup() {
     _display = Display::getInstance();
@@ -220,14 +213,14 @@ void Controller::setup() {
     if (setupKeypad() < 0) {
         _isInitOk = false;
     }
-    // k_msleep(1000);
-    // if (setupRelays() < 0) {
-    //     _isInitOk = false;
-    // }
-    // k_msleep(1000);
-    // if (setupBankNoteReader() < 0) {
-    //     _isInitOk = false;
-    // }
+    k_msleep(1000);
+    if (setupRelays() < 0) {
+        _isInitOk = false;
+    }
+    k_msleep(1000);
+    if (setupBankNoteReader() < 0) {
+        _isInitOk = false;
+    }
 
     gpio_pin_configure_dt(&led_run, GPIO_OUTPUT_INACTIVE);
     //total setup time is 5sec for easy firmware update when running binary is dead right now after started
@@ -246,7 +239,7 @@ void Controller::processModel(Message &Message) {
         _machine->begin(_isInitOk);
         putMessage(MessageRunning, 0);
         putMessage(MessageKeypadPolling, 0);
-        // putMessage(MessageBanknoteReaderPolling, 0);
+        putMessage(MessageBanknoteReaderPolling, 0);
         break;
     case MessageKeypadPress:
         _machine->pressKey(Message.data);
@@ -280,10 +273,10 @@ void Controller::operateDevice(Message &Message) {
     // static PinStatus running_led = HIGH;
     switch(Message.type) {
     case MessageBanknoteReaderEnable:
-        // _bankNoteReader->enable();
+        _bankNoteReader->enable();
         break;
     case MessageBanknoteReaderDisable:
-        // _bankNoteReader->disable();
+        _bankNoteReader->disable();
         break;
     case MessageRunning:
         gpio_pin_toggle_dt(&led_run);
@@ -294,20 +287,20 @@ void Controller::operateDevice(Message &Message) {
         putMessage(MessageKeypadPolling, 0, 50);
         break;
     case MessageBanknoteReaderPolling:
-        // _bankNoteReader->notifyBillData();
+        _bankNoteReader->notifyBillData();
         putMessage(MessageBanknoteReaderPolling, 0, 50);
         break;
     case MessageRelayOpen:{
-        // int channel = Message.data;
-        // auto r_ch = convertChannelToRelayFromModel(channel);
-        // _relays[r_ch.first]->open(r_ch.second);
-        // Serial.println("relay open");
+        int channel = Message.data;
+        auto r_ch = convertChannelToRelayFromModel(channel);
+        _relays[r_ch.first]->open(r_ch.second);
+        LOG_INF("relay open");
         break;
     } case MessageRelayClose: {
-        // int channel = Message.data;
-        // auto r_ch = convertChannelToRelayFromModel(channel);
-        // _relays[r_ch.first]->close(r_ch.second);
-        // Serial.println("relay close");
+        int channel = Message.data;
+        auto r_ch = convertChannelToRelayFromModel(channel);
+        _relays[r_ch.first]->close(r_ch.second);
+        LOG_INF("relay close");
         break;
     } case MessageFlush: {
         if (_isSelled) {

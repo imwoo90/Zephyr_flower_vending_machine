@@ -1,44 +1,60 @@
-#include "OBH_K03P.h"
+// 지폐 읽기가 안되는중 cntPulse 디버깅 해야함
 
-static void cntPulse(OBH_K03P* p) {
-    xTimerStopFromISR(p->_timer, 0);
-    if (p->_cntPulse == 0)
+
+#include "OBH_K03P.h"
+#include <zephyr/device.h>
+#include <zephyr/drivers/gpio.h>
+
+#include <zephyr/logging/log.h>
+LOG_MODULE_REGISTER(obh_k03p);
+
+
+static const struct device *gpio0 = DEVICE_DT_GET(DT_NODELABEL(gpio0));
+static struct gpio_callback vendPinCallback;
+
+static void cntPulse(const struct device *port,
+                    struct gpio_callback *cb,
+                    gpio_port_pins_t pins) {
+    OBH_K03P* p = OBH_K03P::getInstance();
+    if (k_timer_status_get(&p->_timer) == 0)
+        k_timer_stop(&p->_timer);
+    if (p->_tmp_cntPulse == 0)
         p->disable();
-    p->_cntPulse += 1;
-    xTimerStartFromISR(p->_timer, 0);
+    p->_tmp_cntPulse += 1;
+    k_timer_start(&p->_timer, K_MSEC(300), K_NO_WAIT);
 }
-static void billDataEndCallback( TimerHandle_t xTimer ) {
-    OBH_K03P* p = (OBH_K03P*)pvTimerGetTimerID(xTimer);
-    switch(p->_cntPulse) {
+
+static void billDataEndCallback(k_timer *timer)
+{
+    OBH_K03P* p = (OBH_K03P*)timer->user_data;
+    switch(p->_tmp_cntPulse) {
     case 1:
     case 5:
     case 10:
-        xQueueSend(p->_q, NULL, 0);
-        return;
+        p->_cntPulse = p->_tmp_cntPulse;
+        break;
     default:
-        // Serial.println("Banknote Reader recognize error");
+        p->enable();
         break;
     }
-    p->enable();
-    // Serial.printf("Banknote count pulse %d\r\n", p->_cntPulse);
-    p->_cntPulse = 0;
+    p->_tmp_cntPulse = 0;
 }
 
-static void errorOccur(OBH_K03P* p) {
+// static void errorOccur(OBH_K03P* p) {
 
-}
+// }
 
 void OBH_K03P::enable() {
-    digitalWrite(_inhibitPin, HIGH);
+    gpio_pin_set(gpio0, _inhibitPin, 1);
 }
 
 void OBH_K03P::disable() {
-    digitalWrite(_inhibitPin, LOW);
+    gpio_pin_set(gpio0, _inhibitPin, 0);
 }
 
 int OBH_K03P::getBillData() {
     int billData = 0;
-    if (xQueueReceive(_q, NULL, 0) == pdTRUE) {
+    if (_cntPulse) {
         billData = _cntPulse*1000;
         _cntPulse = 0;
     }
@@ -46,30 +62,19 @@ int OBH_K03P::getBillData() {
 }
 
 int OBH_K03P::initialized() {
-    pinMode(_inhibitPin, OUTPUT);
-    pinMode(_vendPin, INPUT_PULLUP);
-    pinMode(_errorPin, INPUT_PULLUP);
+    // pinMode(_inhibitPin, OUTPUT);
+    gpio_pin_configure(gpio0, _inhibitPin, GPIO_OUTPUT);
+    // pinMode(_vendPin, INPUT_PULLUP);
+    gpio_pin_interrupt_configure(gpio0, _vendPin, GPIO_INPUT | GPIO_PULL_UP | GPIO_INT_EDGE_FALLING );
+    // pinMode(_errorPin, INPUT_PULLUP);
 
-    _q = xQueueCreate(16, 0);
-    _timer = xTimerCreate(
-         /* Just a text name, not used by the RTOS
-        kernel. */
-        "EnterProductNumber",
-        /* The timer period in ticks, must be
-        greater than 0. */
-        pdMS_TO_TICKS(300),
-        /* The timers will auto-reload themselves
-        when they expire. */
-        pdFALSE,
-        /* The ID is used to store a count of the
-        number of times the timer has expired, which
-        is initialised to 0. */
-        ( void * ) this,
-        /* Each timer calls the same callback when
-        it expires. */
-        billDataEndCallback
-    );
-    attachInterrupt(_vendPin, cntPulse, FALLING, this);
+    k_timer_init(&_timer, billDataEndCallback, NULL);
+    _timer.user_data = this;
+
+    // gpio_pin_configure(gpio0, _vendPin, GPIO_INPUT | GPIO_PULL_UP | GPIO_INT_EDGE_FALLING );
+    gpio_init_callback(&vendPinCallback, cntPulse, BIT(_vendPin));
+	gpio_add_callback(gpio0, &vendPinCallback);
+
     // attachInterrupt(_errorPin, errorOccur, FALLING, this);
     BanknoteReader::initialized();
     return 0;
