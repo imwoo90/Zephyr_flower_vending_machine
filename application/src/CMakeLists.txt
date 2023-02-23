@@ -5,8 +5,7 @@ FILE(GLOB_RECURSE app_sources
     app/view/*.c*
     device/Relay/*.c*
     device/Keypad_4x3/*.c*
-    device/BanknoteReader/OBH_K03P.cpp
-    device/BanknoteReader/BanknoteReader.cpp
+    device/BanknoteReader/*.c*
 )
 target_sources(app PRIVATE ${app_sources})
 

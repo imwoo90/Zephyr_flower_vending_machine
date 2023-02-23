@@ -1,6 +1,6 @@
 #include <Controller.h>
 
-// #include <device/BanknoteReader/OBH_K03S.h>
+#include <device/BanknoteReader/OBH_K03S.h>
 #include <device/BanknoteReader/OBH_K03P.h>
 // #include <device/Relay/UPUS_SKB.h>
 #include <device/Relay/R4D3B16.h>
@@ -176,9 +176,7 @@ int Controller::setupBankNoteReader() {
     if (readerMode == 1) {
         _bankNoteReader = OBH_K03P::getInstance()->setPins(12, 10, 11);
     } else if(readerMode == 2) {
-        // Serial2.setPinout(8, 9);
-        // Serial2.begin(9600);
-        // _bankNoteReader = OBH_K03S::getInstance(Serial2);
+        _bankNoteReader = OBH_K03S::getInstance(DEVICE_DT_GET(DT_NODELABEL(uart1)));
     } else {
         LOG_INF("Reader Mode setting error");
         return -1;

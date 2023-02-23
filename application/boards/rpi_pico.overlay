@@ -1,3 +1,4 @@
+
 / {
 	chosen {
 		zephyr,usb-device = &zephyr_udc0;
@@ -66,6 +67,25 @@ zephyr_udc0: &usbd {
 	};
 };
 
+&uart1 {
+	current-speed = <9600>;
+	status = "okay";
+	pinctrl-0 = <&uart1_default>;
+    pinctrl-names = "default";
+};
+
 &i2c0 {
 	clock-frequency = <I2C_BITRATE_STANDARD>;
+};
+
+&pinctrl {
+	uart1_default: uart1_default {
+		group1 {
+			pinmux = <UART1_TX_P8>;
+		};
+		group2 {
+			pinmux = <UART1_RX_P9>;
+			input-enable;
+		};
+	};
 };
