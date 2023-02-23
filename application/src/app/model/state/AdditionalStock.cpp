@@ -19,6 +19,12 @@ AdditionalStock* AdditionalStock::getInstance() {
     return &singleton_instance;
 }
 
+MachineState* AdditionalStock::releaseKey(const char key) {
+    _data["LockerType"] = "";
+    _data["LockerChannel"] = "";
+    return this;
+}
+
 MachineState* AdditionalStock::pressKey(const char key) {
     char buf[32];
     uint32_t column, addGoods;
@@ -47,6 +53,12 @@ MachineState* AdditionalStock::pressKey(const char key) {
             // _database->flush(TypeColumnData);
             _selection = 0;
             _data["selection"] = "param_0";
+
+            std::string locker = itoa(_database->getMotorType(column), buf, 10);
+            if (locker == "1") {
+                _data["LockerType"] = locker;
+                _data["LockerChannel"] = itoa(_database->getChannel(column), buf, 10);
+            }
         }
         break;
     default: {//1~9
