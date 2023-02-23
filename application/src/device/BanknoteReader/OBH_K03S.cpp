@@ -77,13 +77,15 @@ int OBH_K03S::initialized() {
     uart_irq_rx_enable(_serial);
 
     char _buf[5];
+    while(readBytes(_buf, 1, 1)); //Flush uart rx buffer
     //reset
     char cmd[3] = {'R', 'S', 'T'};
     sendCommand(cmd);
     readBytes(_buf, 5, 300);
     if (!receiveCommnad(_buf, "OK")) {
         // Serial.println("OHB_K03S reset error");
-        LOG_INF("OHB_K03S reset error");
+        LOG_INF("OHB_K03S reset error %d", fifo_count);
+        LOG_INF("%c %c %c %c %c", _buf[0], _buf[1], _buf[2], _buf[3], _buf[4]);
         return -1;
     }
     k_msleep(2500);
