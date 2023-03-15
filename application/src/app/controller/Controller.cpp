@@ -32,20 +32,14 @@ void Controller::putMessage(MessageType type, int data, int delay_ms) {
     k_work_schedule(&p->work, K_MSEC(delay_ms));
 }
 
-static int channel_swMotorInterrupt;
-// static void motorRoundCallback(Controller* p) {
-//     p->_isISR = true;
-//     if (digitalRead(2) == LOW) {
-//         p->putMessage(MessageRelayClose, channel_swMotorInterrupt);
-//     }
-//     p->_isISR = false;
-// }
+static int g_channel_swMotorInterrupt;
+static int g_locker_type;
 static void motorRoundCallback(const struct device *port,
                     struct gpio_callback *cb,
                     gpio_port_pins_t pins) {
     Controller* p = Controller::getInstance();
-    if (gpio_pin_get(gpio0, 2) == 0){
-        p->putMessage(MessageRelayClose, channel_swMotorInterrupt);
+    if (gpio_pin_get(gpio0, 2) == 0 && g_locker_type == 2) {
+        p->putMessage(MessageRelayClose, g_channel_swMotorInterrupt);
     }
     LOG_INF("%s", __func__);
 }
@@ -90,13 +84,15 @@ int Controller::setupMachine() {
         }
 
         if(data["LockerType"] == "1") { // relay (Lock)
+            g_locker_type = 1;
             int channel = std::stoi(data["LockerChannel"]);
             putMessage(MessageRelayOpen, channel);
             putMessage(MessageRelayClose, channel, 500);
         } else if(data["LockerType"] == "2") { // relay (mortor)
-            channel_swMotorInterrupt = std::stoi(data["LockerChannel"]);
-            putMessage(MessageRelayOpen, channel_swMotorInterrupt);
-            putMessage(MessageRelayClose, channel_swMotorInterrupt, 7000);
+            g_locker_type = 2;
+            g_channel_swMotorInterrupt = std::stoi(data["LockerChannel"]);
+            putMessage(MessageRelayOpen, g_channel_swMotorInterrupt);
+            putMessage(MessageRelayClose, g_channel_swMotorInterrupt, 7000);
             // The motorRoundCallback must be called after above code is working
         }
 
