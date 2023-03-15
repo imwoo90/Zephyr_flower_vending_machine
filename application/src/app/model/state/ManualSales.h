@@ -5,13 +5,13 @@
 
 class ManualSales : public MachineState {
 private:
-    uint32_t _column, _is_running;
+    uint32_t _column;
 
     ManualSales() {}
     virtual void initialize();
 public:
     static ManualSales* getInstance();
 
-    virtual MachineState* systemMessage(const SystemMessage mgs);
+    virtual MachineState* releaseKey(const char key);
     virtual MachineState* pressKey(const char key);
 };
