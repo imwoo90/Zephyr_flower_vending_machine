@@ -116,10 +116,6 @@ int Controller::setupMachine() {
         if(data["deinitRelays"] == "Running") {
             deinitRelays();
         }
-
-        if (data["isSelled"] == "OK") {
-            _isSelled = true;
-        }
     };
     auto onTimeoutCallback = [&](const int signal) {
         putMessage(MessageTimeout, signal);
@@ -316,6 +312,7 @@ void Controller::operateDevice(Message &Message) {
         break;
     } case MessageFlush: {
         if (_isSelled) {
+            //This code probably won't work.
             _isSelled = false;
             _machine->_database->flush(TypeAll);
         }

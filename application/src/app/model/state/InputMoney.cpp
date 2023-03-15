@@ -89,8 +89,6 @@ MachineState* InputMoney::recognizeBanknote(const int banknote) {
             // xTimerChangePeriod(_timer, 8*1000, 0);
             duration = K_MSEC(8*1000);
         }
-
-        _data["isSelled"] = "OK";
     }
 
     k_timer_start(&_timer, duration, K_NO_WAIT);
@@ -99,7 +97,6 @@ MachineState* InputMoney::recognizeBanknote(const int banknote) {
 
 MachineState* InputMoney::pressKey(const char key) {
     MachineState* next = this;
-    _data["isSelled"] = "";
     _data["LockerType"] = "";
     _data["LockerChannel"] = "";
     // To do this
