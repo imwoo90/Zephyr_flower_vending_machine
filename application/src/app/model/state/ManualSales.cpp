@@ -2,6 +2,14 @@
 
 #include "SystemSetting.h"
 
+static void manualSalesTimeoutCallBack( k_timer *xTimer ) {
+    MachineState::_timeoutCallback(TimeoutInputMoney);
+}
+
+ManualSales::ManualSales() {
+    k_timer_init(&_timer, manualSalesTimeoutCallBack, NULL);
+}
+
 void ManualSales::initialize() {
     // init data
     _data.clear();
@@ -34,10 +42,11 @@ MachineState* ManualSales::pressKey(const char key) {
     switch ( key ) {
     case '*':
         next = SystemSetting::getInstance();
+        k_timer_stop(&_timer);
         break;
     case '#':
         _column = std::stoi(_data["param_0"]) - 1;
-        if (0<= _column && _column < _database->getNumberOfColumns() ) {
+        if ( 0<= _column && _column < _database->getNumberOfColumns() ) {
             uint32_t price = _database->getPrice(_column);
             if (price <= 0)
                 break;
@@ -53,6 +62,16 @@ MachineState* ManualSales::pressKey(const char key) {
             _data["LockerChannel"] = itoa(_database->getChannel(_column), buf, 10);
             _database->setNumberOfManualSales(1 + _database->getNumberOfManualSales());
             _database->setMoneyOfManualSales(std::stoi(_data["param_1"]) + _database->getMoneyOfManualSales());
+
+            k_timeout_t duration = K_MSEC(1000);
+            if (_data["LockerType"] == "1") {
+                // xTimerChangePeriod(_timer, 2*1000, 0);
+                duration = K_MSEC(2*1000);
+            } else if (_data["LockerType"] == "2") {
+                // xTimerChangePeriod(_timer, 8*1000, 0);
+                duration = K_MSEC(8*1000);
+            }
+            k_timer_start(&_timer, duration, K_NO_WAIT);
         }
         break;
     default: {//1~9
@@ -62,4 +81,8 @@ MachineState* ManualSales::pressKey(const char key) {
         break;}
     }
     return next;
+}
+
+MachineState* ManualSales::timeout(const int signal) {
+    return SystemSetting::getInstance();
 }

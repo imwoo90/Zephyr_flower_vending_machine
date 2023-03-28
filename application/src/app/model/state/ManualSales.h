@@ -6,12 +6,14 @@
 class ManualSales : public MachineState {
 private:
     uint32_t _column;
+    k_timer _timer;
 
-    ManualSales() {}
+    ManualSales();
     virtual void initialize();
 public:
     static ManualSales* getInstance();
 
     virtual MachineState* releaseKey(const char key);
     virtual MachineState* pressKey(const char key);
+    virtual MachineState* timeout(const int signal);
 };
