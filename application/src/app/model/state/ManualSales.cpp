@@ -54,7 +54,9 @@ MachineState* ManualSales::pressKey(const char key) {
 
             static unsigned long startTime = 0;
             std::string locker = itoa(_database->getMotorType(_column), buf, 10);
-            if (locker == "2" && (k_uptime_get_32() - startTime) < 8000) {
+            if (locker == "1" && (k_uptime_get_32() - startTime) < 1000) {
+                break;
+            } else if (locker == "2" && (k_uptime_get_32() - startTime) < 8000) {
                 break;
             }
             startTime = k_uptime_get_32();
