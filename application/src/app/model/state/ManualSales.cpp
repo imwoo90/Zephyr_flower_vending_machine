@@ -68,7 +68,7 @@ MachineState* ManualSales::pressKey(const char key) {
             k_timeout_t duration = K_MSEC(1000);
             if (_data["LockerType"] == "1") {
                 // xTimerChangePeriod(_timer, 2*1000, 0);
-                duration = K_MSEC(2*1000);
+                duration = K_MSEC(1*1000);
             } else if (_data["LockerType"] == "2") {
                 // xTimerChangePeriod(_timer, 8*1000, 0);
                 duration = K_MSEC(8*1000);
