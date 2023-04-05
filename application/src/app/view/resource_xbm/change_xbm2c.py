@@ -58,6 +58,7 @@ for f_xbm in  sorted(os.listdir(resource_path)):
         with open(dst, 'w') as f:
             f.write(newText)
             f.close()
-
+        
+        os.rename(src, f'../resource_xbm/{keyword}.xbm')
         # shutil.copy(src, dst)
         idx += 1
