@@ -88,6 +88,10 @@ int Controller::setupMachine() {
             int channel = std::stoi(data["LockerChannel"]);
             putMessage(MessageRelayOpen, channel);
             putMessage(MessageRelayClose, channel, 500);
+
+            //Open it once more because it may not open after 0.5sec
+            putMessage(MessageRelayOpen, channel, 1000);
+            putMessage(MessageRelayClose, channel, 1500);
         } else if(data["LockerType"] == "2") { // relay (mortor)
             g_locker_type = 2;
             g_channel_swMotorInterrupt = std::stoi(data["LockerChannel"]);
