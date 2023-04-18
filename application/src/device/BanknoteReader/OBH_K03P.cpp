@@ -15,9 +15,8 @@ static struct gpio_callback vendPinCallback;
 static void cntPulse(const struct device *port,
                     struct gpio_callback *cb,
                     gpio_port_pins_t pins) {
-    OBH_K03P* p = OBH_K03P::getInstance();
+    //count only 99~101ms width pulse
     static uint32_t falling_time = 0;
-
     if (falling_time == 0) {
         falling_time = k_uptime_get_32();
         return;
@@ -29,6 +28,7 @@ static void cntPulse(const struct device *port,
         }
     }
 
+    OBH_K03P* p = OBH_K03P::getInstance();
     if (k_timer_status_get(&p->_timer) == 0)
         k_timer_stop(&p->_timer);
     if (p->_tmp_cntPulse == 0)
