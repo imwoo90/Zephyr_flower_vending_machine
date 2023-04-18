@@ -16,6 +16,19 @@ static void cntPulse(const struct device *port,
                     struct gpio_callback *cb,
                     gpio_port_pins_t pins) {
     OBH_K03P* p = OBH_K03P::getInstance();
+    static uint32_t falling_time = 0;
+
+    if (falling_time == 0) {
+        falling_time = k_uptime_get_32();
+        return;
+    } else {
+        uint32_t pulse_time = k_uptime_get_32() - falling_time;
+        falling_time = 0;
+        if ( pulse_time < 99 || 101 < pulse_time) {
+            return;
+        }
+    }
+
     if (k_timer_status_get(&p->_timer) == 0)
         k_timer_stop(&p->_timer);
     if (p->_tmp_cntPulse == 0)
@@ -65,7 +78,7 @@ int OBH_K03P::initialized() {
     // pinMode(_inhibitPin, OUTPUT);
     gpio_pin_configure(gpio0, _inhibitPin, GPIO_OUTPUT);
     // pinMode(_vendPin, INPUT_PULLUP);
-    gpio_pin_interrupt_configure(gpio0, _vendPin, GPIO_INPUT | GPIO_PULL_UP | GPIO_INT_EDGE_FALLING );
+    gpio_pin_interrupt_configure(gpio0, _vendPin, GPIO_INPUT | GPIO_PULL_UP | GPIO_INT_EDGE_BOTH );
     // pinMode(_errorPin, INPUT_PULLUP);
 
     k_timer_init(&_timer, billDataEndCallback, NULL);
