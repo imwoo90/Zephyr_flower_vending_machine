@@ -15,15 +15,20 @@ static struct gpio_callback vendPinCallback;
 static void cntPulse(const struct device *port,
                     struct gpio_callback *cb,
                     gpio_port_pins_t pins) {
-    //count only 99~101ms width pulse
+    //count only 80~120ms width pulse
     static uint32_t falling_time = 0;
     if (falling_time == 0) {
         falling_time = k_uptime_get_32();
         return;
     } else {
         uint32_t pulse_time = k_uptime_get_32() - falling_time;
-        falling_time = 0;
-        if ( pulse_time < 99 || 101 < pulse_time) {
+        if (pulse_time < 80) {
+            falling_time = 0;
+            return;
+        } else if (pulse_time <= 120) {
+            falling_time = 0;
+        } else {
+            falling_time = k_uptime_get_32();
             return;
         }
     }
