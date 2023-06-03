@@ -70,8 +70,13 @@ MachineState* InputMoney::recognizeBanknote(const int banknote) {
     _data["param_0"] = itoa(_inputMoney, buf, 10);
     _data["param_1"] = itoa(price, buf, 10);
     if (price <= _inputMoney) {
-        int quantity = _database->getQuantity(_column) - 1;
-        _database->setQuantity(_column, quantity);
+        int addtitional = _database->getAdditional(_column);
+        if (addtitional > 0) {
+            _database->setAdditional(_column, addtitional-1);
+        } else {
+            _database->setQuantity(_column, _database->getQuantity(_column)-1);
+        }
+
         _database->setNumberOfTotalSales(1 + _database->getNumberOfTotalSales());
         _database->setMoneyOfTotalSales(price + _database->getMoneyOfTotalSales());
         _database->flush(TypeAll);
