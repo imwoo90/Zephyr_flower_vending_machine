@@ -48,10 +48,8 @@ MachineState* AdditionalStock::pressKey(const char key) {
         } else if (_selection == 2) {
             column = std::stoi(_data["param_0"])-1;
             addGoods = std::stoi(_data["param_2"]);
-            uint32_t total = addGoods + _database->getQuantity(column) + _database->getAdditional(column);
-            if (99 < total)
-                break;
             _database->setAdditional(column, addGoods + _database->getAdditional(column));
+            _database->setQuantity(column, addGoods+_database->getQuantity(column));
             // _database->flush(TypeColumnData);
             _selection = 0;
             _data["selection"] = "param_0";

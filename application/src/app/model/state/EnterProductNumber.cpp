@@ -62,8 +62,7 @@ MachineState* EnterProductNumber::pressKey(const char key) {
         if ( n+1 == _database->getPasswordOfSystemManagement() ){
             next = EnterPasswordOfSystemSetting::getInstance();
         } else if ( 0 <= n && n < _database->getNumberOfColumns() ) {
-            uint32_t total_quantity = _database->getQuantity(n) + _database->getAdditional(n);
-            if (total_quantity > 0) {
+            if (_database->getQuantity(n) > 0) {
                 next =InputMoney::getInstance(n);
             } else {
                 next = EnterProductNumberNoGoods::getInstance();
