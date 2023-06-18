@@ -6,9 +6,7 @@
     * ms-azuretools.vscode-docker
 # Getting Started
 If you are ready above the requires, press F1 key and enter keyword 'reopen'
-
 so you can see 'Remote Containers: Reopen in container'
-
 Just click!
 
 ![reopen](./doc/reopen.png)
